@@ -5,6 +5,7 @@ from trainer import BERT4ETHTrainer
 import pickle as pkl
 from vocab import FreqVocab
 
+args.bizdate= '2024'
 
 def train():
 

@@ -10,7 +10,7 @@ parser.add_argument("--deanon", type=bool, default=False, help="whether to inclu
 parser.add_argument("--tornado", type=bool, default=False, help="whether to include tornado dataset.")
 parser.add_argument("--data_dir", type=str, default="../data", help="data directory.")
 parser.add_argument("--dataset", type=str, default=None, help="which dataset to use")
-parser.add_argument("--bizdate", type=str, default=None, help="the date of running experiments.")
+parser.add_argument("--bizdate", type=str, default='2024', help="the date of running experiments.")
 parser.add_argument("--dup", type=str, default=True, help="whether to do transaction duplication")
 args = parser.parse_args()
 
@@ -169,6 +169,7 @@ def seq_generation(eoa2seq_in, eoa2seq_out):
     return eoa2seq
 
 def feature_bucketization(eoa2seq_agg):
+    # how to split the amount
 
     for eoa in eoa2seq_agg.keys():
         seq = eoa2seq_agg[eoa]
@@ -232,8 +233,8 @@ def feature_bucketization(eoa2seq_agg):
 
 def main():
 
-    f_in = open(os.path.join(args.data_dir, "normal_eoa_transaction_in_slice_1000K.csv"), "r")
-    f_out = open(os.path.join(args.data_dir, "normal_eoa_transaction_out_slice_1000K.csv"), "r")
+    f_in = open(os.path.abspath(os.path.join(args.data_dir, "normal_eoa_transaction_in_slice_1000K.csv")), "r")
+    f_out = open(os.path.abspath( os.path.join(args.data_dir, "normal_eoa_transaction_out_slice_1000K.csv")), "r")
     print("Add normal account transactions.")
     eoa2seq_in, eoa2seq_out = load_data(f_in, f_out)
     if args.dup:
@@ -243,8 +244,8 @@ def main():
 
     if args.phisher:
         print("Add phishing..")
-        phisher_f_in = open(os.path.join(args.data_dir, "phisher_transaction_in.csv"), "r")
-        phisher_f_out = open(os.path.join(args.data_dir, "phisher_transaction_out.csv"), "r")
+        phisher_f_in = open(os.path.abspath(os.path.join(args.data_dir, "phisher_transaction_in.csv")), "r")
+        phisher_f_out = open(os.path.abspath(os.path.join(args.data_dir, "phisher_transaction_out.csv")), "r")
         phisher_eoa2seq_in, phisher_eoa2seq_out = load_data(phisher_f_in, phisher_f_out)
         if args.dup:
             phisher_eoa2seq_agg = seq_duplicate(phisher_eoa2seq_in, phisher_eoa2seq_out)

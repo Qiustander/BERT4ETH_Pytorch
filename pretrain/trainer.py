@@ -105,16 +105,34 @@ class BERT4ETHTrainer(nn.Module):
         return loss
 
     def train(self):
+        # add resume training code
         assert self.args.ckpt_dir, "must specify the directory for storing checkpoint"
+        current_epoch = self.load(self.args.ckpt_dir)
+
+        current_epoch = int(current_epoch) if current_epoch is not None else 0
         accum_step = 0
-        for epoch in range(self.num_epochs):
+        for epoch in range(current_epoch, self.num_epochs):
             # print("bias:", self.output_bias[:10])
             accum_step = self.train_one_epoch(epoch, accum_step)
             if (epoch+1) % 5 == 0 or epoch==0:
                 self.save_model(epoch+1, self.args.ckpt_dir)
 
     def load(self, ckpt_dir):
+        if not os.path.isdir(self.args.ckpt_dir):
+            return
+
+        content = os.listdir(self.args.ckpt_dir)
+        full_path = [os.path.join(self.args.ckpt_dir, x)  for x in content]
+        dir_content = sorted(full_path, key=lambda t: os.stat(t).st_mtime)
+
+        if not len(dir_content):
+            return
+
+        ckpt_dir = dir_content[-1]
         self.model.load_state_dict(torch.load(ckpt_dir))
+
+        name = os.path.basename(ckpt_dir)
+        return name[6:-4]
 
     def infer_embedding(self, ):
         self.model.eval()

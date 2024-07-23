@@ -51,10 +51,10 @@ class BERT4ETHDataloader:
             seq = eoa2seq[eoa]
             length_list.append(len(seq))
 
-        length_list = np.array(length_list)
-        print("Median:", np.median(length_list))
-        print("Mean:", np.mean(length_list))
-        print("Seq num:", len(length_list))
+        # length_list = np.array(length_list)
+        # print("Median:", np.median(length_list))
+        # print("Mean:", np.mean(length_list))
+        # print("Seq num:", len(length_list))
 
         # clip
         max_num_tokens = self.args.max_seq_length - 1
@@ -155,11 +155,8 @@ class BERT4ETHTrainDataset(data_utils.Dataset):
 
         max_seq_length = self.args.max_seq_length
 
-        assert len(input_ids) <= max_seq_length
-        assert len(counts) <= max_seq_length
-        assert len(values) <= max_seq_length
-        assert len(io_flags) <= max_seq_length
-        assert len(positions) <= max_seq_length
+
+        # I see, augment all following to the max lengths, default 100
 
         input_ids += [0] * (max_seq_length - len(input_ids))
         counts += [0] * (max_seq_length - len(counts))
@@ -168,14 +165,6 @@ class BERT4ETHTrainDataset(data_utils.Dataset):
         positions += [0] * (max_seq_length - len(positions))
         input_mask += [0] * (max_seq_length - len(input_mask))
         labels += [-1] * (max_seq_length - len(labels))
-
-        assert len(input_ids) == max_seq_length
-        assert len(counts) == max_seq_length
-        assert len(values) == max_seq_length
-        assert len(io_flags) == max_seq_length
-        assert len(positions) == max_seq_length
-        assert len(input_mask) == max_seq_length
-        assert len(labels) == max_seq_length
 
 
         return torch.LongTensor(address_id), \
@@ -220,11 +209,6 @@ class BERT4ETHEvalDataset(data_utils.Dataset):
 
         max_seq_length = self.args.max_seq_length
 
-        assert len(input_ids) <= max_seq_length
-        assert len(counts) <= max_seq_length
-        assert len(values) <= max_seq_length
-        assert len(io_flags) <= max_seq_length
-        assert len(positions) <= max_seq_length
 
         input_ids += [0] * (max_seq_length - len(input_ids))
         counts += [0] * (max_seq_length - len(counts))
@@ -233,12 +217,6 @@ class BERT4ETHEvalDataset(data_utils.Dataset):
         positions += [0] * (max_seq_length - len(positions))
         input_mask += [0] * (max_seq_length - len(input_mask))
 
-        assert len(input_ids) == max_seq_length
-        assert len(counts) == max_seq_length
-        assert len(values) == max_seq_length
-        assert len(io_flags) == max_seq_length
-        assert len(positions) == max_seq_length
-        assert len(input_mask) == max_seq_length
 
         return torch.LongTensor(address_id), \
                torch.LongTensor(input_ids), \

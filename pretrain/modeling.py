@@ -242,6 +242,7 @@ class BERT4ETH(nn.Module):
         self.embedding = BERTEmbedding(args)
 
         # multi-layers transformer blocks, deep network
+        # multi-layers transformer blocks, deep network
         self.transformer_blocks = nn.ModuleList(
             [TransformerBlock(args.hidden_size,
                               args.num_attention_heads,
