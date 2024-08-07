@@ -1,75 +1,17 @@
 import numpy as np
 import os
-
+from models.model import  MLP
 import torch
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
-from torch import nn
-import torch.nn.functional as F
 import torch.utils.data as data_utils
-from tqdm import tqdm
 import argparse
 
 parser = argparse.ArgumentParser("phishing_detection")
-parser.add_argument("--input_dir", type=str, default="../outputs/1130_epoch_50", help="the input directory of address and embedding list")
+parser.add_argument("--input_dir", type=str, default="inter_data/bert4eth_exp_embed", help="the input directory of address and embedding list")
 parser.add_argument("--train_batch_size", type=int, default=256, help="the input directory of address and embedding list")
 
 args = parser.parse_args()
-
-
-class MLP(nn.Module):
-    def __init__(self, dataloader):
-        super(MLP, self).__init__()
-        self.dataloader = dataloader
-        self.input_dim = 64
-        self.hidden_dim = 256
-        self.num_epochs = 2
-        self.lr = 5e-4
-        self.device = "cuda"
-        self.fc1 = nn.Linear(self.input_dim, self.hidden_dim).to(self.device)
-        self.fc2 = nn.Linear(self.hidden_dim, self.hidden_dim).to(self.device)
-        self.out_layer = nn.Linear(self.hidden_dim, 2).to(self.device)
-        self.optimizer = torch.optim.Adam([p for p in self.parameters() if p.requires_grad], lr=self.lr)
-
-    def forward(self, x):
-        dnn1 = F.relu(self.fc1(x))
-        dnn2 = F.relu(self.fc2(dnn1))
-        logits = self.out_layer(dnn1+dnn2)
-        return logits
-
-    def fit(self):
-        self.train()
-        accum_iter = 0
-        for epoch in range(self.num_epochs):
-            # for each epoch
-            tqdm_dataloader = tqdm(self.dataloader)
-            for batch_idx, batch in enumerate(tqdm_dataloader):
-                batch = [x for x in batch]
-
-                X_batch = batch[0]
-                y_batch = batch[1]
-                X_batch = torch.tensor(X_batch).to(self.device)
-                y_batch = torch.tensor(y_batch).to(self.device)
-
-                self.optimizer.zero_grad()
-                logits = self.forward(X_batch)
-                loss = F.cross_entropy(logits.view(-1, logits.shape[-1]), y_batch.view(-1))
-                loss.backward()
-                self.optimizer.step()
-                tqdm_dataloader.set_description(
-                    'Epoch {}, loss {:.3f} '.format(epoch, loss.item())
-                )
-                batch_size = X_batch.shape[0]
-                accum_iter += batch_size
-
-        return
-    def predict_proba(self, X_test):
-        X_test = torch.tensor(X_test).to(self.device)
-        logits = self.forward(X_test)
-        y_test = torch.softmax(logits, dim=1)[:,1].detach().cpu().numpy()
-
-        return y_test
 
 
 class TrainDataset(data_utils.Dataset):
@@ -88,7 +30,7 @@ class TrainDataset(data_utils.Dataset):
 def main():
 
     phisher_account_set = set()
-    with open("../data/phisher_account.txt", "r") as f:
+    with open("data/phisher_account.txt", "r") as f:
         for line in f.readlines():
             phisher_account_set.add(line[:-1])
 

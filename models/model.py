@@ -2,8 +2,9 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from abc import *
 from utils import fix_random_seed_as
+from tqdm import tqdm
+import os
 
 class PositionalEmbedding(nn.Module):
 
@@ -162,6 +163,7 @@ class MultiHeadedAttention(nn.Module):
 
         return self.output_linear(x)
 
+
 class TransformerBlock(nn.Module):
     """
     Bidirectional Encoder = Transformer (self-attention)
@@ -189,48 +191,6 @@ class TransformerBlock(nn.Module):
         return self.dropout(x)
 
 
-class BERT(nn.Module):
-    def __init__(self, args):
-        super().__init__()
-
-        fix_random_seed_as(args.model_init_seed)
-        # self.init_weights()
-
-        max_len = args.bert_max_len
-        num_items = args.num_items
-        n_layers = args.bert_num_blocks
-        heads = args.bert_num_heads
-        vocab_size = num_items + 2
-        hidden = args.bert_hidden_units
-        self.hidden = hidden
-        dropout = args.bert_dropout
-
-        # embedding for BERT, sum of positional, segment, token embeddings
-        self.embedding = BERTEmbedding(vocab_size=vocab_size, embed_size=self.hidden, max_len=max_len, dropout=dropout)
-
-        # multi-layers transformer blocks, deep network
-        self.transformer_blocks = nn.ModuleList(
-            [TransformerBlock(hidden, heads, hidden * 4, dropout) for _ in range(n_layers)])
-
-        self.out = nn.Linear(self.hidden, args.num_items + 1)
-
-    def forward(self, x):
-        mask = (x > 0).unsqueeze(1).repeat(1, x.size(1), 1).unsqueeze(1)
-
-        # embedding the indexed sequence to sequence of vectors
-        x = self.embedding(x)
-
-        # running over multiple transformer blocks
-        for transformer in self.transformer_blocks:
-            x = transformer.forward(x, mask)
-
-        x = self.out(x)
-
-        return x
-
-    def init_weights(self):
-        pass
-
 
 class BERT4ETH(nn.Module):
     def __init__(self, args):
@@ -241,7 +201,6 @@ class BERT4ETH(nn.Module):
         # embedding for BERT, sum of positional, segment, token embeddings
         self.embedding = BERTEmbedding(args)
 
-        # multi-layers transformer blocks, deep network
         # multi-layers transformer blocks, deep network
         self.transformer_blocks = nn.ModuleList(
             [TransformerBlock(args.hidden_size,
@@ -267,3 +226,106 @@ class BERT4ETH(nn.Module):
 
     def init_weights(self):
         pass
+
+
+"""
+MLP for downstream task
+"""
+
+class MLP(nn.Module):
+    def __init__(self, dataloader=None):
+        super(MLP, self).__init__()
+        self.dataloader = dataloader
+        self.input_dim = 64
+        self.hidden_dim = 256
+        self.num_epochs = 2
+        self.lr = 5e-4
+        self.device = "cuda"
+        self.fc1 = nn.Linear(self.input_dim, self.hidden_dim).to(self.device)
+        self.fc2 = nn.Linear(self.hidden_dim, self.hidden_dim).to(self.device)
+        self.out_layer = nn.Linear(self.hidden_dim, 1).to(self.device)
+        self.optimizer = torch.optim.Adam([p for p in self.parameters() if p.requires_grad], lr=self.lr)
+
+    def forward(self, x):
+        dnn1 = F.relu(self.fc1(x))
+        dnn2 = F.relu(self.fc2(dnn1))
+        # logits = torch.squeeze(self.out_layer(dnn1+dnn2), -1)
+        logits =self.out_layer(dnn1+dnn2)
+
+        return logits
+
+    def fit(self):
+        self.train()
+        accum_iter = 0
+        for epoch in range(self.num_epochs):
+            # for each epoch
+            tqdm_dataloader = tqdm(self.dataloader)
+            for batch_idx, batch in enumerate(tqdm_dataloader):
+                batch = [x for x in batch]
+
+                X_batch = batch[0]
+                y_batch = batch[1]
+                X_batch = torch.tensor(X_batch).to(self.device)
+                y_batch = torch.tensor(y_batch).to(self.device)
+
+                self.optimizer.zero_grad()
+                logits = self.forward(X_batch)
+                loss = F.cross_entropy(logits.view(-1, logits.shape[-1]), y_batch.view(-1))
+                loss.backward()
+                self.optimizer.step()
+                tqdm_dataloader.set_description(
+                    'Epoch {}, loss {:.3f} '.format(epoch, loss.item())
+                )
+                batch_size = X_batch.shape[0]
+                accum_iter += batch_size
+
+        return
+
+    def predict_proba(self, X_test):
+        X_test = torch.tensor(X_test).to(self.device)
+        logits = self.forward(X_test)
+        y_test = torch.softmax(logits, dim=1)[:,1].detach().cpu().numpy()
+
+        return y_test
+
+
+"""
+Finetuning Model
+"""
+
+class FineTuneModel(nn.Module):
+    def __init__(self, args, downstream_net=MLP()):
+        super().__init__()
+
+        self.pretrain_model = BERT4ETH(args)
+
+        self.downstream_net=downstream_net
+        # self.out = nn.Linear(config["hidden_size"], config["vocab_size"])
+
+        self.init_pretrain(ckpt_dir=args.pre_train_ckpt_dir)
+
+    def init_pretrain(self, ckpt_dir):
+        if not os.path.isdir(ckpt_dir):
+            raise FileNotFoundError("Must have pretrain model")
+
+        content = os.listdir(ckpt_dir)
+        full_path = [os.path.join(ckpt_dir, x)  for x in content]
+        dir_content = sorted(full_path, key=lambda t: os.stat(t).st_mtime)
+
+        if not len(dir_content):
+            raise FileNotFoundError("Must have pretrain model")
+
+        ckpt_dir = dir_content[-1]
+
+        pre_train_ckpt = torch.load(ckpt_dir)
+        self.pretrain_model.load_state_dict(pre_train_ckpt)
+
+    def forward(self, input_ids, counts, values, io_flags, positions):
+
+        # embedding the indexed sequence to sequence of vectors
+        x = self.pretrain_model.forward(input_ids, counts, values, io_flags, positions)
+        embed = x[:, 0, :]
+        x = self.downstream_net.forward(embed)
+
+        return x
+

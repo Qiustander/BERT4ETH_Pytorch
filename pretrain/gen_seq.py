@@ -6,8 +6,8 @@ import os
 
 parser = argparse.ArgumentParser(description="Data Processing with PyTorch")
 parser.add_argument("--phisher", type=bool, default=True, help="whether to include phisher detection dataset.")
-parser.add_argument("--deanon", type=bool, default=False, help="whether to include de-anonymization dataset.")
-parser.add_argument("--tornado", type=bool, default=False, help="whether to include tornado dataset.")
+parser.add_argument("--deanon", type=bool, default=True, help="whether to include de-anonymization dataset.")
+parser.add_argument("--tornado", type=bool, default=True, help="whether to include tornado dataset.")
 parser.add_argument("--data_dir", type=str, default="../data", help="data directory.")
 parser.add_argument("--dataset", type=str, default=None, help="which dataset to use")
 parser.add_argument("--bizdate", type=str, default='2024', help="the date of running experiments.")
@@ -287,9 +287,9 @@ def main():
     print("Mean:", np.mean(length_list))
     print("Seq #:", len(length_list))
 
-    os.makedirs("../outputs", exist_ok=True)
+    os.makedirs("../inter_data", exist_ok=True)
 
-    with open("../outputs/eoa2seq_" + args.bizdate + ".pkl", "wb") as f:
+    with open("../inter_data/eoa2seq_" + args.bizdate + ".pkl", "wb") as f:
         pkl.dump(eoa2seq_agg, f)
 
 

@@ -1,18 +1,17 @@
 import numpy as np
-from utils import AverageMeterSet
 import torch
 import torch.nn as nn
-import torch.optim as optim
 from torch.optim import AdamW
-from torch.distributions import Categorical
 from tqdm import tqdm
 import torch.nn.functional as F
 import os
 from torch.nn.utils import clip_grad_norm_
 
+
 def negative_sample(sampler, sample_num):
     neg_ids = sampler.sample((sample_num,))
     return neg_ids + 1 + 3
+
 
 def gather_indexes(sequence_tensor, positions):
     """
@@ -25,6 +24,7 @@ def gather_indexes(sequence_tensor, positions):
     flat_sequence_tensor = sequence_tensor.view(batch_size * seq_length, width)
     output_tensor = flat_sequence_tensor.index_select(0, flat_positions)
     return output_tensor
+
 
 class PyTorchAdamWeightDecayOptimizer(AdamW):
     """A basic Adam optimizer that includes L2 weight decay for PyTorch."""
@@ -107,7 +107,7 @@ class BERT4ETHTrainer(nn.Module):
     def train(self):
         # add resume training code
         assert self.args.ckpt_dir, "must specify the directory for storing checkpoint"
-        current_epoch = self.load(self.args.ckpt_dir)
+        current_epoch = self.load()
 
         current_epoch = int(current_epoch) if current_epoch is not None else 0
         accum_step = 0
@@ -117,7 +117,7 @@ class BERT4ETHTrainer(nn.Module):
             if (epoch+1) % 5 == 0 or epoch==0:
                 self.save_model(epoch+1, self.args.ckpt_dir)
 
-    def load(self, ckpt_dir):
+    def load(self):
         if not os.path.isdir(self.args.ckpt_dir):
             return
 
@@ -134,7 +134,7 @@ class BERT4ETHTrainer(nn.Module):
         name = os.path.basename(ckpt_dir)
         return name[6:-4]
 
-    def infer_embedding(self, ):
+    def infer_embedding(self):
         self.model.eval()
         tqdm_dataloader = tqdm(self.data_loader)
         embedding_list = []
@@ -193,7 +193,6 @@ class BERT4ETHTrainer(nn.Module):
 
         for batch_idx, batch in enumerate(tqdm_dataloader):
 
-            batch_size = batch[0].shape[0]
             batch = [x.to(self.device) for x in batch]
             self.optimizer.zero_grad()
             loss = self.calculate_loss(batch)
@@ -211,7 +210,6 @@ class BERT4ETHTrainer(nn.Module):
         return accum_step
 
     def save_model(self, epoch, ckpt_dir):
-        print(ckpt_dir)
         os.makedirs(ckpt_dir, exist_ok=True)
         ckpt_dir = os.path.join(ckpt_dir, "epoch_" + str(epoch)) + ".pth"
         print("Saving model to:", ckpt_dir)
@@ -242,3 +240,60 @@ class BERT4ETHTrainer(nn.Module):
 
         return optimizer, lr_scheduler
 
+
+class PhishAccountTrainer(BERT4ETHTrainer):
+    def __init__(self, args, vocab, model, data_loader):
+        super().__init__(args, vocab, model, data_loader)
+        self.loss_fn = nn.BCEWithLogitsLoss()
+
+    def calculate_loss(self, batch):
+        input_ids = batch[1]
+        counts = batch[2]
+        values = batch[3]
+        io_flags = batch[4]
+        positions = batch[5]
+        labels = batch[7]
+
+        h = self.model(input_ids, counts, values, io_flags, positions).to(self.device) # B x T x V
+        labels = torch.where(labels > 0, labels, 0)
+        loss = self.loss_fn(h.view(-1), labels.view(-1).type(h.dtype))
+        return loss
+
+    def train(self):
+        # add resume training code
+
+        accum_step = 0
+        for epoch in range(self.num_epochs):
+            # print("bias:", self.output_bias[:10])
+            accum_step = self.train_one_epoch(epoch, accum_step)
+            if not os.path.exists(self.args.ckpt_dir +"_phish"):
+                os.makedirs(self.args.ckpt_dir +"_phish")
+            if (epoch + 1) % 5 == 0 or epoch == 0:
+                self.save_model(epoch + 1, self.args.ckpt_dir +"_phish")
+
+    def predict_proba(self, test_loader):
+
+        self.model.eval()
+        tqdm_dataloader = tqdm(test_loader)
+
+        output_y = []
+        original_test_data = []
+
+        with torch.no_grad():
+            for batch_idx, batch in enumerate(tqdm_dataloader):
+
+                batch = [x.to(self.device) for x in batch]
+
+                input_ids = batch[1]
+                counts = batch[2]
+                values = batch[3]
+                io_flags = batch[4]
+                positions = batch[5]
+
+                logits = self.model(input_ids, counts, values, io_flags, positions)
+                y_test = F.sigmoid(logits).detach().cpu().numpy()
+
+                output_y.append(y_test)
+                original_test_data.append(batch[-1].cpu().numpy())
+
+        return output_y, original_test_data
