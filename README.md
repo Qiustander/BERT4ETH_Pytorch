@@ -1,10 +1,8 @@
-# BERT4ETH (PyTorch Version)
+# BERT4ETH 
 
-This is the PyTorch implementation for the paper [BERT4ETH: A Pre-trained Transformer for Ethereum Fraud Detection](https://dl.acm.org/doi/abs/10.1145/3543507.3583345), accepted by the ACM Web conference (WWW) 2023.
+This is the PyTorch implementation for the paper [BERT4ETH: A Pre-trained Transformer for Ethereum Fraud Detection](https://dl.acm.org/doi/abs/10.1145/3543507.3583345). 
+This repository is revised from [the official repository](https://github.com/Bayi-Hu/BERT4ETH_PyTorch).
 
-I have recovered the experiment results and am doing final check. (2023/11/29)
-
-If you find this repository useful, please give us a star and cite our paper : ) Thank you!
 
 ## Getting Start
 
@@ -40,7 +38,7 @@ unzip ...;
 #### Step 1: Transaction Sequence Generation
 
 ```sh
-cd src;
+cd pretrain;
 python gen_seq.py --bizdate=bert4eth_exp
 ```
 
@@ -63,10 +61,10 @@ python run_embed.py --bizdate="bert4eth_exp" \
 
 #### Phishing Account Detection
 ```sh
-cd eval
+cd ..
+cd downstream
 python phish_detection_mlp.py --input_dir="../outputs/xxx"
 ```
-
 #### De-anonymization (ENS dataset)
 
 ```sh
@@ -76,27 +74,16 @@ python run_dean_ENS.py --metric=euclidean \
 
 
 ### Fine-tuning for phishing account detection
-```sh
-  Will update later..
 ```
-
-
-
------
-## Citation
-
+python phish_finetune.py
 ```
-@inproceedings{hu2023bert4eth,
-  title={BERT4ETH: A Pre-trained Transformer for Ethereum Fraud Detection},
-  author={Hu, Sihao and Zhang, Zhen and Luo, Bingqiao and Lu, Shengliang and He, Bingsheng and Liu, Ling},
-  booktitle={Proceedings of the ACM Web Conference 2023},
-  pages={2189--2197},
-  year={2023}
-}
+#### Evaluation 
+```
+python finetune_test.py 
 ```
 
 -----
 ## Q&A
 
-If you have any questions, you can either open an issue or contact me (sihaohu@gatech.edu), and I will reply as soon as I see the issue or email.
+If you have any questions, you can either open an issue or contact the original author (sihaohu@gatech.edu), and I will reply as soon as I see the issue or email.
 
