@@ -268,7 +268,7 @@ class PhishAccountTrainer(BERT4ETHTrainer):
             accum_step = self.train_one_epoch(epoch, accum_step)
             if not os.path.exists(self.args.ckpt_dir +"_phish"):
                 os.makedirs(self.args.ckpt_dir +"_phish")
-            if (epoch + 1) % 5 == 0 or epoch == 0:
+            if (epoch + 1) % 1 == 0 or epoch == 0:
                 self.save_model(epoch + 1, self.args.ckpt_dir +"_phish")
 
     def predict_proba(self, test_loader):

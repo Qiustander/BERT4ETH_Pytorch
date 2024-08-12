@@ -7,7 +7,7 @@ import numpy as np
 from sklearn.metrics import classification_report
 
 args.bizdate = '2024'
-args.num_epochs = 5
+args.num_epochs = 2
 args.lr = 3e-4
 
 def train():
