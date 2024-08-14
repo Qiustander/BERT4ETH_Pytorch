@@ -83,7 +83,7 @@ def load_data(f_in, f_out):
         try:
             eoa2seq_in[to_address].append([from_address, block_number, block_timestamp, value, "IN", 1]) # not process trans
         except:
-            eoa2seq_in[to_address] = [[from_address, block_number, block_timestamp, value, "IN", 1]] # in/out, cnt
+            eoa2seq_in[to_address] = [[from_address, block_number, block_timestamp, value, "IN", 1]] # in/out, cnt, cnt means cumulative trans numbers
     return eoa2seq_in, eoa2seq_out
 
 def seq_duplicate(eoa2seq_in, eoa2seq_out):

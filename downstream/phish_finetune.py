@@ -3,7 +3,6 @@ from pretrain.dataloader import FineTuneLoader
 from models.model import FineTuneModel
 from pretrain.trainer import PhishAccountTrainer
 import pickle as pkl
-import numpy as np
 from sklearn.metrics import classification_report
 
 args.bizdate = '2024'
