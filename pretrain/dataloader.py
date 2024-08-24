@@ -58,7 +58,7 @@ class BERT4ETHDataloader:
         idx = 0
         for eoa, seq in eoa2seq.items():
             if len(seq) <= max_num_tokens:
-                seqs.append([[eoa, 0, 0, 0, 0, 0]])
+                seqs.append([[eoa] + [0]*(len(seq[0]) - 1)])
                 seqs[idx] += seq
                 idx += 1
             elif len(seq) > max_num_tokens:
@@ -68,13 +68,13 @@ class BERT4ETHDataloader:
                 if len(beg_idx) > 500:
                     beg_idx = list(np.random.permutation(beg_idx)[:500])
                     for i in beg_idx:
-                        seqs.append([[eoa, 0, 0, 0, 0, 0]])
+                        seqs.append([[eoa] + [0]*(len(seq[0]) - 1)])
                         seqs[idx] += seq[i:i + max_num_tokens]
                         idx += 1
 
                 else:
                     for i in beg_idx[::-1]:
-                        seqs.append([[eoa, 0, 0, 0, 0, 0]])
+                        seqs.append([[eoa] + [0]*(len(seq[0]) - 1)])
                         seqs[idx] += seq[i:i + max_num_tokens]
                         idx += 1
 
@@ -195,10 +195,9 @@ class BERT4ETHTrainDataset(data_utils.Dataset):
         counts = list(map(lambda x: x[5], tranxs))
         positions = convert_timestamp_to_position(block_timestamps)
         input_mask = [1] * len(input_ids)
+        gas_fee = list(map(lambda x: x[-1], tranxs))
 
         max_seq_length = self.args.max_seq_length
-
-        # I see, augment all following to the max lengths, default 100
 
         input_ids += [0] * (max_seq_length - len(input_ids))
         counts += [0] * (max_seq_length - len(counts))
@@ -206,9 +205,10 @@ class BERT4ETHTrainDataset(data_utils.Dataset):
         io_flags += [0] * (max_seq_length - len(io_flags))
         positions += [0] * (max_seq_length - len(positions))
         input_mask += [0] * (max_seq_length - len(input_mask))
+        gas_fee += [0] * (max_seq_length - len(gas_fee))
+
         if not self.label_list:
             labels += [-1] * (max_seq_length - len(labels))
-
 
         return torch.LongTensor(address_id), \
                torch.LongTensor(input_ids), \
@@ -217,7 +217,8 @@ class BERT4ETHTrainDataset(data_utils.Dataset):
                torch.LongTensor(io_flags), \
                torch.LongTensor(positions), \
                torch.LongTensor(input_mask), \
-               torch.LongTensor(labels)
+            torch.LongTensor(gas_fee), \
+        torch.LongTensor(labels)
 
 
 class BERT4ETHEvalDataset(data_utils.Dataset):
@@ -247,6 +248,7 @@ class BERT4ETHEvalDataset(data_utils.Dataset):
         values = list(map(lambda x: x[3], tranxs))
         io_flags = list(map(map_io_flag, tranxs))
         counts = list(map(lambda x: x[5], tranxs))
+        gas_fee = list(map(lambda x: x[-1], tranxs))
         positions = convert_timestamp_to_position(block_timestamps)
         input_mask = [1] * len(input_ids)
 
@@ -259,7 +261,7 @@ class BERT4ETHEvalDataset(data_utils.Dataset):
         io_flags += [0] * (max_seq_length - len(io_flags))
         positions += [0] * (max_seq_length - len(positions))
         input_mask += [0] * (max_seq_length - len(input_mask))
-
+        gas_fee += [0] * (max_seq_length - len(gas_fee))
 
         return torch.LongTensor(address_id), \
                torch.LongTensor(input_ids), \
@@ -268,7 +270,7 @@ class BERT4ETHEvalDataset(data_utils.Dataset):
                torch.LongTensor(io_flags), \
                torch.LongTensor(positions), \
                torch.LongTensor(input_mask), \
-
+               torch.LongTensor(gas_fee)
 
 
 class FineTuneDataset(BERT4ETHTrainDataset):
@@ -295,6 +297,7 @@ class FineTuneDataset(BERT4ETHTrainDataset):
         values = list(map(lambda x: x[3], tranxs))
         io_flags = list(map(map_io_flag, tranxs))
         counts = list(map(lambda x: x[5], tranxs))
+        gas_fee = list(map(lambda x: x[-1], tranxs))
         positions = convert_timestamp_to_position(block_timestamps)
         input_mask = [1] * len(input_ids)
 
@@ -306,6 +309,7 @@ class FineTuneDataset(BERT4ETHTrainDataset):
         io_flags += [0] * (max_seq_length - len(io_flags))
         positions += [0] * (max_seq_length - len(positions))
         input_mask += [0] * (max_seq_length - len(input_mask))
+        gas_fee += [0] * (max_seq_length - len(gas_fee))
 
         return torch.LongTensor(address_id), \
             torch.LongTensor(input_ids), \
@@ -313,6 +317,8 @@ class FineTuneDataset(BERT4ETHTrainDataset):
             torch.LongTensor(values), \
             torch.LongTensor(io_flags), \
             torch.LongTensor(positions), \
+            torch.LongTensor(gas_fee), \
             torch.LongTensor(input_mask), \
             torch.LongTensor(labels)
+
 

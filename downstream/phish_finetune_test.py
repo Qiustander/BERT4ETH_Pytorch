@@ -8,8 +8,7 @@ from sklearn.metrics import classification_report
 import  os
 import torch
 
-args.bizdate= '2024'
-
+args.bizdate= 'gas'
 
 def eval(args):
     vocab_file_name = args.data_dir + args.vocab_filename + "." + args.bizdate

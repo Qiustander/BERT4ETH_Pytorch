@@ -50,11 +50,14 @@ class BERTEmbedding(nn.Module):
         self.count_embed = TokenEmbedding(vocab_size=15, embed_size=args.hidden_size)
         self.position_embed = TokenEmbedding(vocab_size=args.max_seq_length , embed_size=args.hidden_size)
         self.io_embed = TokenEmbedding(vocab_size=3, embed_size=args.hidden_size)
+        self.gas_embed = TokenEmbedding(vocab_size=15, embed_size=args.hidden_size)
 
         self.dropout = nn.Dropout(p=args.hidden_dropout_prob)
 
-    def forward(self, input_ids, counts, values, io_flags, positions):
-        x = self.token_embed(input_ids) + self.count_embed(counts) + self.position_embed(positions) + self.io_embed(io_flags) + self.value_embed(values)
+    def forward(self, args):
+        input_ids, counts, values, io_flags, positions, gas_fee = args
+        x = self.token_embed(input_ids) + self.count_embed(counts) + self.position_embed(positions) \
+            + self.io_embed(io_flags) + self.value_embed(values) + self.gas_embed(gas_fee)
         return self.dropout(x)
 
 class PositionwiseFeedForward(nn.Module):
@@ -191,7 +194,6 @@ class TransformerBlock(nn.Module):
         return self.dropout(x)
 
 
-
 class BERT4ETH(nn.Module):
     def __init__(self, args):
         super().__init__()
@@ -211,12 +213,12 @@ class BERT4ETH(nn.Module):
 
         # self.out = nn.Linear(config["hidden_size"], config["vocab_size"])
 
-    def forward(self, input_ids, counts, values, io_flags, positions):
-
+    def forward(self, args):
+        input_ids = args[0]
         mask = (input_ids > 0).unsqueeze(1).repeat(1, input_ids.size(1), 1).unsqueeze(1)
 
         # embedding the indexed sequence to sequence of vectors
-        x = self.embedding(input_ids, counts, values, io_flags, positions)
+        x = self.embedding(args)
 
         # running over multiple transformer blocks
         for transformer in self.transformer_blocks:
@@ -320,10 +322,10 @@ class FineTuneModel(nn.Module):
         pre_train_ckpt = torch.load(ckpt_dir)
         self.pretrain_model.load_state_dict(pre_train_ckpt)
 
-    def forward(self, input_ids, counts, values, io_flags, positions):
+    def forward(self, args):
 
         # embedding the indexed sequence to sequence of vectors
-        x = self.pretrain_model.forward(input_ids, counts, values, io_flags, positions)
+        x = self.pretrain_model.forward(args)
         embed = x[:, 0, :]
         x = self.downstream_net.forward(embed)
 

@@ -70,10 +70,12 @@ class BERT4ETHTrainer(nn.Module):
         values = batch[3]
         io_flags = batch[4]
         positions = batch[5]
-        input_mask = batch[6]
-        labels = batch[7]
+        # input_mask = batch[6]
+        gas_fee = batch[7]
 
-        h = self.model(input_ids, counts, values, io_flags, positions).to(self.device) # B x T x V
+        labels = batch[-1]
+
+        h = self.model([input_ids, counts, values, io_flags, positions, gas_fee]).to(self.device) # B x T x V
 
         # Transformation
         input_tensor = self.dense(h)
@@ -247,14 +249,10 @@ class PhishAccountTrainer(BERT4ETHTrainer):
         self.loss_fn = nn.BCEWithLogitsLoss()
 
     def calculate_loss(self, batch):
-        input_ids = batch[1]
-        counts = batch[2]
-        values = batch[3]
-        io_flags = batch[4]
-        positions = batch[5]
-        labels = batch[7]
 
-        h = self.model(input_ids, counts, values, io_flags, positions).to(self.device) # B x T x V
+        labels = batch[-1]
+
+        h = self.model(batch[1:-2]).to(self.device) # B x T x V
         labels = torch.where(labels > 0, labels, 0)
         loss = self.loss_fn(h.view(-1), labels.view(-1).type(h.dtype))
         return loss
@@ -284,13 +282,7 @@ class PhishAccountTrainer(BERT4ETHTrainer):
 
                 batch = [x.to(self.device) for x in batch]
 
-                input_ids = batch[1]
-                counts = batch[2]
-                values = batch[3]
-                io_flags = batch[4]
-                positions = batch[5]
-
-                logits = self.model(input_ids, counts, values, io_flags, positions)
+                logits = self.model(batch[1:-2])
                 y_test = F.sigmoid(logits).detach().cpu().numpy()
 
                 output_y.append(y_test)

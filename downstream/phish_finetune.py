@@ -3,9 +3,8 @@ from pretrain.dataloader import FineTuneLoader
 from models.model import FineTuneModel
 from pretrain.trainer import PhishAccountTrainer
 import pickle as pkl
-from sklearn.metrics import classification_report
 
-args.bizdate = '2024'
+args.bizdate = 'gas'
 args.num_epochs = 2
 args.lr = 3e-4
 
